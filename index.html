@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover"/>
+    <title>Demos</title>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://unpkg.com/http-vue-loader"></script>
+    <link rel="stylesheet" href="./vantui.min.css">
+    <link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+    <div id="my-app" style="height: 100%">
+        <my-component></my-component>
+    </div>
+
+    <script type="module">
+    import Map from './map.js'
+
+        window.onload = function(){
+            const params = new URLSearchParams(location.search.slice(1))
+            const apiCode = params.get('apiCode') || vant.Toast.fail('请在url中传入apiCode')
+            const appid = params.get('appid') || vant.Toast.fail('请在url中传入appid')
+            const secret = params.get('secret') || vant.Toast.fail('请在url中传入secret')
+            
+            if(apiCode && appid && secret){
+                axiosInterceptors(appid, secret)
+                new Vue({
+                el: '#my-app',
+                components: {
+                    'my-component': httpVueLoader(Map[apiCode])
+                },
+            });
+            }
+        }
+        function axiosInterceptors(showapi_appid,showapi_sign){
+            // Do something before request is sent
+            axios.interceptors.request.use(function (config) {
+                if (config.method === 'post') {
+                    config.data = config.data || {}
+                    config.data.showapi_appid = showapi_appid
+                    config.data.showapi_sign = showapi_sign
+
+                    config.data = new URLSearchParams(config.data)
+                }
+                if (config.method === 'get') {
+                    config.params = config.params || {}
+                    config.params.showapi_appid = showapi_appid
+                    config.params.showapi_sign = showapi_sign
+                    config.params = config.params
+                }
+                return config;
+            }, function (error) {
+                // Do something with request error
+                return Promise.reject(error);
+            })
+
+            axios.interceptors.response.use(
+                response => {
+                    const res = response.data
+                    return new Promise((resolve, reject) => {
+                        if (res.showapi_res_code !== 0) { // 系统级错误
+                            vant.Toast.fail(res.showapi_res_error)
+                        } else if (res.showapi_res_body.ret_code !== 0) { // 业务级错误
+                            reject(res.showapi_res_body)
+                        } else {
+                            resolve(res.showapi_res_body)
+
+                        }
+                    })
+                },
+                error => {
+                    console.log('err' + error) // for debug
+                    vant.Toast.fail(error.showapi_res_error)
+                    return Promise.reject(error)
+                }
+            )
+        }
+    </script>
+
+        <!-- axios -->
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+        <!-- vantui -->
+        <script src="https://cdn.jsdelivr.net/npm/vant@2.8/lib/vant.min.js"></script>
+    
+        <!-- vantui 兼容pc端 -->
+        <script src="https://cdn.jsdelivr.net/npm/@vant/touch-emulator"></script> 
+    
+</body>
+</html>
